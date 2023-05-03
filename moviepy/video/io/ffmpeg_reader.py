@@ -9,6 +9,7 @@ import os
 import re
 import subprocess as sp
 import warnings
+import select
 
 import numpy as np
 
@@ -148,7 +149,13 @@ class FFMPEG_VideoReader:
         w, h = self.size
         nbytes = self.depth * w * h
 
-        s = self.proc.stdout.read(nbytes)
+        # s = self.proc.stdout.read(nbytes)
+        # timeout: 5s
+        rlist, _, _ = select.select([self.proc.stdout], [], [], 5)
+        if self.proc.stdout in rlist:
+            s = self.proc.stdout.read(nbytes)
+        else:
+            raise IOError(('Read timeout'))
 
         if len(s) != nbytes:
             warnings.warn(
