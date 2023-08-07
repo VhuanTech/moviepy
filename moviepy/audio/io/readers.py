@@ -117,6 +117,7 @@ class FFMPEG_AudioReader:
             }
         )
 
+        # print('popen cmd={}, params={}'.format(cmd, popen_params))
         self.proc = sp.Popen(cmd, **popen_params)
 
         self.pos = np.round(self.fps * start_time)
@@ -131,7 +132,23 @@ class FFMPEG_AudioReader:
         """TODO: add documentation"""
         # chunksize is not being autoconverted from float to int
         chunksize = int(round(chunksize))
-        s = self.proc.stdout.read(self.nchannels * chunksize * self.nbytes)
+        # s = self.proc.stdout.read(self.nchannels * chunksize * self.nbytes)
+        '''
+        print('num channels: {}, chunk size: {}, num bytes: {}'.format(
+            self.nchannels, chunksize, self.nbytes))
+        '''
+        L = self.nchannels * chunksize * self.nbytes
+        # print('Reading {} bytes from pipe stdout'.format(L))
+        # Modified to avoid read blocking
+        # Kill read after 60 seconds
+        from threading import Timer
+        kill = lambda process: process.kill()
+        my_timer = Timer(60, kill, [self.proc])
+        try:
+            my_timer.start()
+            s = self.proc.stdout.read(L)
+        finally:
+            my_timer.cancel()
         data_type = {1: "int8", 2: "int16", 4: "int32"}[self.nbytes]
         if hasattr(np, "frombuffer"):
             result = np.frombuffer(s, dtype=data_type)
